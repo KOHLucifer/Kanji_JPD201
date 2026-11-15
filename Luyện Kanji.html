@@ -1,0 +1,824 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Luyện Kanji</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Serif+JP:wght@500;700&display=swap">
+<style>
+/* Layout: one centered workspace (max 1040px). Setup = kanji picker beside an options panel; quiz = huge glyph beside the answer fields; stats = sortable table. Dark-first, black ground like Tofugu, one pink accent. */
+:root {
+  --bg: #0d0d0f;
+  --surface: #161619;
+  --surface-2: #1f1f24;
+  --line: #2b2b32;
+  --fg: #f2f1ee;
+  --muted: #9b99a3;
+  --accent: #ee5a9a;
+  --on-accent: #1a0711;
+  --good: #4cc38a;
+  --good-bg: #11271e;
+  --bad: #ff7a5c;
+  --bad-bg: #2d1912;
+  --font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-kanji: 'Noto Serif JP', 'Hiragino Mincho ProN', 'Yu Mincho', 'MS Mincho', serif;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f7f5f2; --surface: #ffffff; --surface-2: #efece8; --line: #dcd8d2;
+    --fg: #17161a; --muted: #6a6772; --accent: #c92f78; --on-accent: #ffffff;
+    --good: #1c8a55; --good-bg: #e3f4ea; --bad: #c4452a; --bad-bg: #fbe6df;
+    color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #f7f5f2; --surface: #ffffff; --surface-2: #efece8; --line: #dcd8d2;
+  --fg: #17161a; --muted: #6a6772; --accent: #c92f78; --on-accent: #ffffff;
+  --good: #1c8a55; --good-bg: #e3f4ea; --bad: #c4452a; --bad-bg: #fbe6df;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.5;
+  padding-block: 20px 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.app { max-width: 1040px; margin: 0 auto; }
+h1, h2, h3 { margin: 0; font-weight: 600; text-wrap: balance; }
+p { margin: 0; }
+button { font: inherit; color: inherit; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+[lang="ja"] { font-family: var(--font-kanji); }
+
+.top {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  padding-bottom: 18px; margin-bottom: 28px; border-bottom: 1px solid var(--line);
+}
+.brand { display: flex; align-items: baseline; gap: 10px; font-weight: 700; font-size: 18px; letter-spacing: -.01em; }
+.brand .mark { font-family: var(--font-kanji); color: var(--accent); font-size: 28px; line-height: 1; }
+.nav { display: flex; gap: 4px; }
+.nav button { background: none; border: 0; padding: 8px 14px; border-radius: 8px; color: var(--muted); font-weight: 500; }
+.nav button:hover { color: var(--fg); }
+.nav button[aria-current="page"] { background: var(--surface-2); color: var(--fg); }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 24px; }
+.lede { color: var(--muted); max-width: 60ch; margin-top: 8px; }
+.eyebrow { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+
+.btn {
+  background: var(--accent); color: var(--on-accent); border: 0; border-radius: 10px;
+  padding: 12px 22px; font-weight: 600; font-size: 15px;
+}
+.btn:hover { filter: brightness(1.08); }
+.btn:disabled { opacity: .4; cursor: not-allowed; filter: none; }
+.btn.ghost { background: transparent; color: var(--fg); border: 1px solid var(--line); font-weight: 500; }
+.btn.ghost:hover { border-color: var(--muted); filter: none; }
+.btn.small { padding: 7px 12px; font-size: 13px; border-radius: 8px; }
+.btn.danger { background: transparent; color: var(--bad); border: 1px solid var(--bad); }
+
+/* setup */
+.setup-grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 28px; margin-top: 28px; align-items: start; }
+.pick { display: flex; flex-direction: column; gap: 28px; min-width: 0; }
+.group-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.group-head h2 { font-size: 15px; }
+.group-head .n { color: var(--muted); font-weight: 400; margin-left: 8px; font-size: 13px; }
+.chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; }
+.chip {
+  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 6px 8px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px; color: var(--muted);
+}
+.chip .k { font-family: var(--font-kanji); font-size: 30px; line-height: 1.2; }
+.chip .h { font-size: 11px; letter-spacing: .06em; }
+.chip[aria-pressed="true"] { border-color: var(--accent); background: var(--surface-2); color: var(--fg); }
+.opts { position: sticky; top: 16px; display: flex; flex-direction: column; gap: 18px; }
+.opts label.check { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+.opts input[type="checkbox"] { width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--accent); flex: none; }
+.opts .sub { color: var(--muted); font-size: 13px; }
+.opts .btn { width: 100%; }
+.warn { color: var(--bad); font-size: 13px; min-height: 1.2em; }
+
+/* quiz */
+.qbar { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+.qbar .count { font-variant-numeric: tabular-nums; color: var(--muted); min-width: 64px; }
+.bar { flex: 1; height: 6px; background: var(--surface-2); border-radius: 3px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--accent); border-radius: 3px; transition: width .25s ease; }
+.qcard { display: grid; grid-template-columns: minmax(220px, 300px) minmax(0, 1fr); gap: 32px; padding: 32px; }
+.glyph {
+  font-family: var(--font-kanji); font-weight: 700; font-size: clamp(112px, 20vw, 190px); line-height: 1.15;
+  text-align: center; display: flex; align-items: center; justify-content: center;
+  background: var(--surface-2); border-radius: 12px; min-height: 240px;
+}
+.qform { display: flex; flex-direction: column; gap: 18px; min-width: 0; justify-content: center; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field .lbl { font-weight: 600; }
+.field .lbl small { color: var(--muted); font-weight: 400; margin-left: 6px; }
+.field input {
+  font: inherit; font-size: 20px; padding: 12px 14px; border-radius: 10px; min-width: 0; width: 100%;
+  background: var(--surface-2); color: var(--fg); border: 1.5px solid var(--line);
+}
+.field input:focus { outline: none; border-color: var(--accent); }
+.field input:disabled { opacity: 1; -webkit-text-fill-color: var(--fg); }
+.field.ok input { border-color: var(--good); background: var(--good-bg); }
+.field.no input { border-color: var(--bad); background: var(--bad-bg); }
+.kana { min-height: 1.5em; color: var(--muted); font-family: var(--font-kanji); font-size: 16px; }
+.verdict { font-size: 14px; }
+.verdict.ok { color: var(--good); }
+.verdict.no { color: var(--bad); }
+.qactions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.qactions .hint { color: var(--muted); font-size: 13px; }
+.fb { grid-column: 1 / -1; border-top: 1px solid var(--line); padding-top: 20px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 24px; }
+.fb h3 { font-size: 20px; letter-spacing: .02em; }
+.fb .vi { color: var(--muted); margin-top: 2px; }
+.rd { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin-top: 12px; }
+.rd dt { color: var(--muted); font-size: 13px; padding-top: 2px; }
+.rd dd { margin: 0; font-family: var(--font-kanji); font-size: 17px; }
+.words { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.word { background: var(--surface-2); border-radius: 8px; padding: 6px 10px; font-size: 13px; color: var(--muted); }
+.word b { font-family: var(--font-kanji); font-weight: 500; color: var(--fg); font-size: 16px; margin-right: 6px; }
+
+/* results */
+.score { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.score .big { font-size: 64px; font-weight: 700; letter-spacing: -.03em; line-height: 1; font-variant-numeric: tabular-nums; }
+.score .pct { color: var(--muted); font-size: 18px; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+.wrong-list { display: flex; flex-direction: column; margin-top: 20px; }
+.wrong { display: grid; grid-template-columns: minmax(64px, auto) minmax(0, 1fr); gap: 16px; padding: 14px 0; border-top: 1px solid var(--line); align-items: center; }
+.wrong .k { font-family: var(--font-kanji); font-size: 40px; text-align: center; line-height: 1.1; }
+.wrong .ans { display: flex; flex-direction: column; gap: 2px; font-size: 14px; }
+.wrong .ans .muted { color: var(--muted); }
+.bad-text { color: var(--bad); }
+.good-text { color: var(--good); }
+.empty { color: var(--muted); margin-top: 16px; }
+
+/* stats */
+.stat-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+.sums { display: flex; gap: 28px; flex-wrap: wrap; margin-top: 12px; }
+.sums div { display: flex; flex-direction: column; }
+.sums b { font-size: 26px; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.sums span { color: var(--muted); font-size: 13px; }
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; min-width: 620px; font-variant-numeric: tabular-nums; }
+th { text-align: left; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+td { padding: 12px 16px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+tr:last-child td { border-bottom: 0; }
+td.kj { font-family: var(--font-kanji); font-size: 28px; line-height: 1.1; min-width: 70px; white-space: nowrap; }
+td .sm { color: var(--muted); font-size: 13px; display: block; }
+.acc { display: flex; align-items: center; gap: 10px; }
+.acc .bar { width: 90px; flex: none; }
+.acc .bar i { background: var(--good); }
+.acc .bar.low i { background: var(--bad); }
+.unpracticed { color: var(--muted); margin-top: 14px; font-size: 13px; }
+
+/* tabs, word categories, word cards */
+.tabs { display: flex; gap: 4px; margin-bottom: 26px; border-bottom: 1px solid var(--line); }
+.tabs button { background: none; border: 0; border-bottom: 2px solid transparent; padding: 10px 16px; color: var(--muted); font-weight: 500; margin-bottom: -1px; }
+.tabs button:hover { color: var(--fg); }
+.tabs button[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--accent); }
+.tabs .tn { color: var(--muted); font-weight: 400; margin-left: 6px; font-size: 13px; font-variant-numeric: tabular-nums; }
+.cats { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
+.catcard { display: flex; flex-direction: column; gap: 6px; text-align: left; padding: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; color: var(--muted); }
+.catcard .cn { color: var(--fg); font-weight: 600; }
+.catcard .ce { font-family: var(--font-kanji); font-size: 18px; color: var(--fg); }
+.catcard .cm { font-size: 12px; }
+.catcard[aria-pressed="true"] { border-color: var(--accent); background: var(--surface-2); }
+.catcard[aria-pressed="false"] .cn, .catcard[aria-pressed="false"] .ce { color: var(--muted); }
+.opts select { font: inherit; padding: 9px 10px; border-radius: 8px; background: var(--surface-2); color: var(--fg); border: 1px solid var(--line); width: 100%; margin-top: 8px; }
+.glyph { flex-direction: column; }
+.glyph[data-len="2"] { font-size: clamp(72px, 13vw, 128px); }
+.glyph[data-len="3"] { font-size: clamp(56px, 10vw, 96px); }
+.glyph[data-len="4"] { font-size: clamp(44px, 8vw, 76px); }
+.glyph[data-len="5"], .glyph[data-len="6"], .glyph[data-len="7"] { font-size: clamp(36px, 6.5vw, 60px); }
+.gcat { font-family: var(--font-ui); font-weight: 500; font-size: 13px; line-height: 1.4; letter-spacing: .04em; color: var(--muted); margin-top: 12px; text-align: center; padding-inline: 12px; }
+.badges { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.badge { font-size: 12px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+.badge.irr { color: var(--bad); border-color: var(--bad); }
+.note { color: var(--muted); font-size: 14px; margin-top: 12px; max-width: 60ch; }
+
+@media (max-width: 760px) {
+  .setup-grid { grid-template-columns: minmax(0, 1fr); }
+  .opts { position: static; }
+  .qcard { grid-template-columns: minmax(0, 1fr); padding: 20px; gap: 20px; }
+  .glyph { min-height: 180px; }
+  .fb { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) { .bar i { transition: none; } }
+</style>
+
+<div class="app">
+  <header class="top">
+    <div class="brand"><span class="mark" lang="ja">漢字</span><span>Luyện Kanji</span></div>
+    <nav class="nav" aria-label="Điều hướng">
+      <button type="button" data-act="goto" data-v="setup" id="nav-setup">Luyện tập</button>
+      <button type="button" data-act="goto" data-v="stats" id="nav-stats">Thống kê</button>
+    </nav>
+  </header>
+  <main id="view"></main>
+</div>
+
+<script>
+// ==LOGIC-START==
+const GROUPS = [
+  { n: 'Nhóm 1 · Giới thiệu' },
+  { n: 'Nhóm 2 · Số 1–10' },
+  { n: 'Nhóm 3 · Trăm, nghìn, vạn, yên' },
+  { n: 'Nhóm 4 · Ngày tháng, thời gian' }
+];
+
+// Thêm chữ mới: copy một dòng bên dưới và sửa. g = số thứ tự nhóm trong GROUPS.
+// read = các cách đọc được chấp nhận (hiragana). mean = các đáp án nghĩa được chấp nhận.
+// words = [từ, cách đọc, nghĩa] hiện ra sau khi trả lời.
+const KANJI = [
+  { k: '私', hv: 'TƯ', vi: 'tôi, riêng tư', on: ['シ'], kun: ['わたし'], read: ['し', 'わたし'], mean: ['tư', 'tôi', 'riêng tư', 'riêng', 'i', 'private'], g: 0,
+    words: [['私', 'わたし', 'tôi']] },
+  { k: '人', hv: 'NHÂN', vi: 'người', on: ['ジン', 'ニン'], kun: ['ひと'], read: ['じん', 'にん', 'ひと'], mean: ['nhân', 'người', 'person', 'people'], g: 0,
+    words: [['一人', 'ひとり', '1 người'], ['二人', 'ふたり', '2 người'], ['三人', 'さんにん', '3 người'], ['五人', 'ごにん', '5 người'], ['六人', 'ろくにん', '6 người'], ['八人', 'はちにん', '8 người']] },
+  { k: '才', hv: 'TÀI', vi: 'tuổi, tài năng', on: ['サイ'], kun: [], read: ['さい'], mean: ['tài', 'tuổi', 'tài năng', 'age', 'talent'], g: 0,
+    words: [['一才', 'いっさい', '1 tuổi'], ['二才', 'にさい', '2 tuổi'], ['八才', 'はっさい', '8 tuổi']] },
+  { k: '学', hv: 'HỌC', vi: 'học, học tập', on: ['ガク'], kun: [], read: ['がく'], mean: ['học', 'học tập', 'học hành', 'learning', 'study'], g: 0, words: [] },
+  { k: '生', hv: 'SINH', vi: 'sinh ra, sống', on: ['セイ'], kun: [], read: ['せい'], mean: ['sinh', 'sinh ra', 'sống', 'birth', 'life'], g: 0, words: [] },
+  { k: '校', hv: 'HIỆU', vi: 'trường học', on: ['コウ'], kun: [], read: ['こう'], mean: ['hiệu', 'trường', 'trường học', 'school'], g: 0, words: [] },
+  { k: '日', hv: 'NHẬT', vi: 'ngày, mặt trời', on: ['ニチ', 'ジツ'], kun: ['ひ', 'び'], read: ['にち', 'じつ', 'ひ', 'び'], mean: ['nhật', 'ngày', 'mặt trời', 'day', 'sun'], g: 0,
+    words: [['一日', 'ついたち', 'ngày 1'], ['一日', 'いちにち', '1 ngày'], ['二日', 'ふつか', 'ngày 2'], ['三日', 'みっか', 'ngày 3'], ['四日', 'よっか', 'ngày 4'], ['五日', 'いつか', 'ngày 5'], ['六日', 'むいか', 'ngày 6'], ['七日', 'なのか', 'ngày 7'], ['八日', 'ようか', 'ngày 8'], ['九日', 'ここのか', 'ngày 9'], ['十日', 'とおか', 'ngày 10']] },
+  { k: '本', hv: 'BẢN', vi: 'sách, gốc', on: ['ホン'], kun: [], read: ['ほん'], mean: ['bản', 'sách', 'gốc', 'gốc rễ', 'book', 'base'], g: 0, words: [] },
+  { k: '語', hv: 'NGỮ', vi: 'từ, ngôn ngữ', on: ['ゴ'], kun: [], read: ['ご'], mean: ['ngữ', 'từ', 'từ ngữ', 'ngôn ngữ', 'word', 'language'], g: 0, words: [] },
+
+  { k: '一', hv: 'NHẤT', vi: 'một (1)', on: ['イチ'], kun: ['ひと・つ'], read: ['いち', 'ひと', 'ひとつ'], mean: ['nhất', 'một', '1', 'one'], g: 1,
+    words: [['一つ', 'ひとつ', 'đếm 1 cái'], ['一人', 'ひとり', '1 người'], ['一才', 'いっさい', '1 tuổi'], ['一日', 'ついたち', 'ngày 1'], ['一日', 'いちにち', '1 ngày']] },
+  { k: '二', hv: 'NHỊ', vi: 'hai (2)', on: ['ニ'], kun: ['ふた・つ'], read: ['に', 'ふた', 'ふたつ'], mean: ['nhị', 'hai', '2', 'two'], g: 1,
+    words: [['二つ', 'ふたつ', 'đếm 2 cái'], ['二人', 'ふたり', '2 người'], ['二才', 'にさい', '2 tuổi'], ['二日', 'ふつか', 'ngày 2']] },
+  { k: '三', hv: 'TAM', vi: 'ba (3)', on: ['サン'], kun: ['みっ・つ', 'み'], read: ['さん', 'み', 'みっつ'], mean: ['tam', 'ba', '3', 'three'], g: 1,
+    words: [['三つ', 'みっつ', 'đếm 3 cái'], ['三人', 'さんにん', '3 người'], ['三日', 'みっか', 'ngày 3']] },
+  { k: '四', hv: 'TỨ', vi: 'bốn (4)', on: ['シ'], kun: ['よっ・つ', 'よん'], read: ['し', 'よ', 'よん', 'よっつ'], mean: ['tứ', 'bốn', '4', 'four'], g: 1,
+    words: [['四つ', 'よっつ', 'đếm 4 cái'], ['四月', 'しがつ', 'tháng 4'], ['四日', 'よっか', 'ngày 4']] },
+  { k: '五', hv: 'NGŨ', vi: 'năm (5)', on: ['ゴ'], kun: ['いつ・つ'], read: ['ご', 'いつ', 'いつつ'], mean: ['ngũ', 'năm', '5', 'five'], g: 1,
+    words: [['五つ', 'いつつ', 'đếm 5 cái'], ['五人', 'ごにん', '5 người'], ['五日', 'いつか', 'ngày 5']] },
+  { k: '六', hv: 'LỤC', vi: 'sáu (6)', on: ['ロク'], kun: ['むっ・つ'], read: ['ろく', 'む', 'むっつ'], mean: ['lục', 'sáu', '6', 'six'], g: 1,
+    words: [['六つ', 'むっつ', 'đếm 6 cái'], ['六月', 'ろくがつ', 'tháng 6'], ['六人', 'ろくにん', '6 người'], ['六日', 'むいか', 'ngày 6']] },
+  { k: '七', hv: 'THẤT', vi: 'bảy (7)', on: ['シチ'], kun: ['なな・つ'], read: ['しち', 'なな', 'ななつ'], mean: ['thất', 'bảy', '7', 'seven'], g: 1,
+    words: [['七つ', 'ななつ', 'đếm 7 cái'], ['七月', 'しちがつ', 'tháng 7'], ['七日', 'なのか', 'ngày 7']] },
+  { k: '八', hv: 'BÁT', vi: 'tám (8)', on: ['ハチ'], kun: ['やっ・つ'], read: ['はち', 'や', 'やっつ'], mean: ['bát', 'tám', '8', 'eight'], g: 1,
+    words: [['八つ', 'やっつ', 'đếm 8 cái'], ['八才', 'はっさい', '8 tuổi'], ['八人', 'はちにん', '8 người'], ['八日', 'ようか', 'ngày 8']] },
+  { k: '九', hv: 'CỬU', vi: 'chín (9)', on: ['キュウ', 'ク'], kun: ['ここの・つ'], read: ['きゅう', 'く', 'ここの', 'ここのつ'], mean: ['cửu', 'chín', '9', 'nine'], g: 1,
+    words: [['九つ', 'ここのつ', 'đếm 9 cái'], ['九月', 'くがつ', 'tháng 9'], ['九日', 'ここのか', 'ngày 9'], ['九州', 'きゅうしゅう', 'đảo Kyushu của Nhật Bản']] },
+  { k: '十', hv: 'THẬP', vi: 'mười (10)', on: ['ジュウ'], kun: ['とお'], read: ['じゅう', 'とお'], mean: ['thập', 'mười', '10', 'ten'], g: 1,
+    words: [['十', 'とお', 'đếm 10 cái'], ['十月', 'じゅうがつ', 'tháng 10'], ['十日', 'とおか', 'ngày 10']] },
+
+  { k: '百', hv: 'BÁCH', vi: 'trăm (100)', on: ['ヒャク'], kun: [], read: ['ひゃく'], mean: ['bách', 'trăm', '100', 'hundred'], g: 2,
+    words: [['百億', 'ひゃくおく', '100 tỷ'], ['百円', 'ひゃくえん', '100 yên']] },
+  { k: '千', hv: 'THIÊN', vi: 'nghìn (1000)', on: ['セン'], kun: [], read: ['せん'], mean: ['thiên', 'nghìn', 'ngàn', '1000', '1 000', 'thousand'], g: 2,
+    words: [['千円', 'せんえん', '1000 yên']] },
+  { k: '万', hv: 'VẠN', vi: 'mười nghìn (10 000)', on: ['マン'], kun: [], read: ['まん'], mean: ['vạn', 'mười nghìn', 'mười ngàn', '10000', '10 000', 'man'], g: 2,
+    words: [['一万円', 'いちまんえん', '10 000 yên']] },
+  { k: '円', hv: 'VIÊN', vi: 'yên (tiền Nhật)', on: ['エン'], kun: [], read: ['えん'], mean: ['viên', 'yên', 'yen', 'đồng yên', 'tiền yên', 'tròn', 'hình tròn'], g: 2,
+    words: [['百円', 'ひゃくえん', '100 yên'], ['千円', 'せんえん', '1000 yên'], ['一万円', 'いちまんえん', '10 000 yên']] },
+
+  { k: '月', hv: 'NGUYỆT', vi: 'mặt trăng, tháng', on: ['ゲツ', 'ガツ'], kun: ['つき'], read: ['げつ', 'がつ', 'つき'], mean: ['nguyệt', 'mặt trăng', 'trăng', 'tháng', 'moon', 'month'], g: 3,
+    words: [['月曜日', 'げつようび', 'thứ hai'], ['今月', 'こんげつ', 'tháng này'], ['来月', 'らいげつ', 'tháng sau'], ['一月', 'いちがつ', 'tháng 1'], ['二月', 'にがつ', 'tháng 2']] },
+  { k: '火', hv: 'HỎA', vi: 'lửa', on: ['カ'], kun: ['ひ'], read: ['か', 'ひ'], mean: ['hỏa', 'hoả', 'lửa', 'fire'], g: 3,
+    words: [['飛び火', 'とびひ', 'tia lửa'], ['火曜日', 'かようび', 'thứ ba'], ['火事', 'かじ', 'hỏa hoạn']] },
+  { k: '水', hv: 'THỦY', vi: 'nước', on: ['スイ'], kun: ['みず'], read: ['すい', 'みず'], mean: ['thủy', 'thuỷ', 'nước', 'water'], g: 3,
+    words: [['水曜日', 'すいようび', 'thứ tư'], ['水仙', 'すいせん', 'cây thủy tiên']] },
+  { k: '木', hv: 'MỘC', vi: 'cây, gỗ', on: ['モク'], kun: ['き'], read: ['もく', 'き'], mean: ['mộc', 'cây', 'gỗ', 'tree', 'wood'], g: 3,
+    words: [['この木', 'このき', 'cái cây này'], ['木曜日', 'もくようび', 'thứ năm'], ['木材', 'もくざい', 'tài nguyên gỗ'], ['木星', 'もくせい', 'sao Mộc']] },
+  { k: '金', hv: 'KIM', vi: 'vàng, tiền, kim loại', on: ['キン'], kun: ['かね'], read: ['きん', 'かね'], mean: ['kim', 'vàng', 'tiền', 'kim loại', 'gold', 'money', 'metal'], g: 3,
+    words: [['お金', 'おかね', 'tiền'], ['金曜日', 'きんようび', 'thứ sáu'], ['金額', 'きんがく', 'số tiền'], ['金魚', 'きんぎょ', 'cá vàng']] },
+  { k: '土', hv: 'THỔ', vi: 'đất', on: ['ド', 'ト'], kun: ['つち'], read: ['ど', 'と', 'つち'], mean: ['thổ', 'đất', 'soil', 'earth'], g: 3,
+    words: [['土曜日', 'どようび', 'thứ bảy'], ['土鍋', 'どなべ', 'nồi đất'], ['土地', 'とち', 'mảnh đất, vùng, lãnh thổ']] },
+  { k: '曜', hv: 'DIỆU', vi: 'thứ (trong tuần)', on: ['ヨウ'], kun: [], read: ['よう'], mean: ['diệu', 'thứ', 'thứ trong tuần', 'ngày trong tuần', 'weekday', 'day of the week'], g: 3,
+    words: [['曜日', 'ようび', 'thứ trong tuần']] },
+  { k: '何', hv: 'HÀ', vi: 'gì, mấy', on: ['カ'], kun: ['なに', 'なん'], read: ['か', 'なに', 'なん'], mean: ['hà', 'gì', 'cái gì', 'mấy', 'what', 'how many'], g: 3,
+    words: [['何時', 'なんじ', 'mấy giờ']] },
+  { k: '年', hv: 'NIÊN', vi: 'năm', on: ['ネン'], kun: ['とし'], read: ['ねん', 'とし'], mean: ['niên', 'năm', 'year'], g: 3,
+    words: [['いい年', 'いいとし', 'một năm tốt lành'], ['一年', 'いちねん', 'một năm'], ['忘年会', 'ぼうねんかい', 'tiệc tất niên']] },
+  { k: '時', hv: 'THỜI', vi: 'lúc, giờ', on: ['ジ'], kun: ['とき'], read: ['じ', 'とき'], mean: ['thời', 'lúc', 'giờ', 'khi', 'time', 'hour'], g: 3,
+    words: [['九時', 'くじ', 'chín giờ'], ['時間', 'じかん', 'thời gian'], ['平時', 'へいじ', 'thời hòa bình']] },
+  { k: '間', hv: 'GIAN', vi: 'khoảng giữa, thời gian', on: ['カン'], kun: ['あいだ', 'ま'], read: ['かん', 'あいだ', 'ま'], mean: ['gian', 'giữa', 'khoảng giữa', 'khoảng', 'thời gian', 'between', 'interval'], g: 3,
+    words: [['茶の間', 'ちゃのま', 'phòng khách kiểu Nhật'], ['時間', 'じかん', 'thời gian']] },
+  { k: '分', hv: 'PHÂN', vi: 'phút, chia, phần', on: ['フン', 'プン', 'ブン', 'ブ'], kun: ['わ・ける'], read: ['ふん', 'ぷん', 'ぶん', 'ぶ', 'わ', 'わける'], mean: ['phân', 'phút', 'chia', 'phần', 'minute', 'divide', 'part'], g: 3,
+    words: [['十分', 'じゅうぶん', 'đủ rồi'], ['七時四十分', 'しちじよんじゅっぷん', '7 giờ 40'], ['一分', 'いちぶ', 'một phần'], ['節分', 'せつぶん', 'tiết Setsubun ở Nhật']] }
+];
+
+/* ---------- từ ghép và số đếm ---------- */
+// src: 'pdf' = có trong 3 file PDF, 'extra' = bổ sung từ kiến thức chung (nên đối chiếu giáo trình).
+// irr: true = cách đọc bất quy tắc, dùng cho bộ lọc "Chỉ từ bất quy tắc".
+const WCATS = [
+  { id: 'pdf', n: 'Từ ghép trong PDF', ex: '火事 · 金魚 · 土地', note: '' },
+  { id: 'week', n: 'Thứ trong tuần', ex: '月曜日 · 金曜日 · 土曜日', note: 'Thứ trong tuần đọc chữ đầu theo âm On: げつ, か, すい, もく, きん, ど, にち, rồi thêm ようび.' },
+  { id: 'date', n: 'Ngày của tháng', ex: '一日 · 六日 · 二十日', note: 'Ngày 1 đến 10, ngày 14, 20 và 24 có cách đọc riêng, cần học thuộc.' },
+  { id: 'month', n: 'Tháng', ex: '四月 · 七月 · 九月', note: 'Tháng 4, 7, 9 đọc しがつ, しちがつ, くがつ.' },
+  { id: 'hour', n: 'Giờ', ex: '四時 · 七時 · 九時', note: '4 giờ là よじ, 7 giờ là しちじ, 9 giờ là くじ.' },
+  { id: 'min', n: 'Phút', ex: '三分 · 六分 · 十分', note: 'Phút đọc ぷん sau 1, 3, 4, 6, 8, 10 và 何; còn lại đọc ふん.' },
+  { id: 'person', n: 'Người', ex: '一人 · 二人 · 四人', note: '1 người là ひとり, 2 người là ふたり, 4 người là よにん; từ 3 người trở đi thêm にん.' },
+  { id: 'age', n: 'Tuổi', ex: '八才 · 十才 · 二十才', note: '20 tuổi là はたち. Tuổi 1, 8, 10 có âm ngắt っ.' },
+  { id: 'year', n: 'Năm', ex: '四年 · 七年 · 九年', note: '4 năm là よねん; 7 năm và 9 năm đọc được theo hai cách.' },
+  { id: 'thing', n: 'Đếm cái (〜つ)', ex: '三つ · 六つ · 十', note: 'Từ 1 đến 9 đọc kiểu 〜つ, riêng 10 là とお.' },
+  { id: 'money', n: 'Trăm, nghìn, vạn, yên', ex: '三百 · 八千円 · 四円', note: '300, 600, 800 là さんびゃく, ろっぴゃく, はっぴゃく; 3000 và 8000 là さんぜん, はっせん; 4 yên là よえん.' }
+];
+const WCAT = Object.fromEntries(WCATS.map(c => [c.id, c]));
+const WORDS = [];
+const NV = ['', 'một', 'hai', 'ba', 'bốn', 'năm', 'sáu', 'bảy', 'tám', 'chín', 'mười', 'mười một', 'mười hai'];
+const KN = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一', '十二'];
+function numForms(v) { const s = String(v); const sp = v >= 1000 ? s.replace(/\B(?=(\d{3})+(?!\d))/g, ' ') : s; return sp === s ? [s] : [s, sp]; }
+function W(cat, k, read, mean, o) {
+  WORDS.push(Object.assign({ type: 'w', cat, k, read: [].concat(read), mean, vi: mean[0], irr: false, src: 'extra', hint: '', hv: '', on: [], kun: [], words: [] }, o || {}));
+}
+const P = (k, read, mean, o) => W('pdf', k, read, mean, Object.assign({ src: 'pdf' }, o));
+
+// Thứ trong tuần
+[['月', 'げつ', 'thứ hai', 2], ['火', 'か', 'thứ ba', 3], ['水', 'すい', 'thứ tư', 4], ['木', 'もく', 'thứ năm', 5], ['金', 'きん', 'thứ sáu', 6], ['土', 'ど', 'thứ bảy', 7]]
+  .forEach(([c, r, vn, n]) => W('week', c + '曜日', r + 'ようび', [vn, 'thứ ' + n, String(n)], { src: 'pdf' }));
+W('week', '日曜日', 'にちようび', ['chủ nhật', 'chúa nhật', 'cn']);
+W('week', '何曜日', 'なんようび', ['thứ mấy', 'mấy', 'ngày thứ mấy']);
+
+// Ngày của tháng
+['ついたち', 'ふつか', 'みっか', 'よっか', 'いつか', 'むいか', 'なのか', 'ようか', 'ここのか', 'とおか'].forEach((r, i) => {
+  const n = i + 1;
+  W('date', KN[i] + '日', r, ['ngày ' + n, 'ngày mùng ' + n, 'mùng ' + n, 'mồng ' + n, String(n)].concat(n > 1 ? [n + ' ngày'] : []),
+    { irr: true, src: 'pdf', vi: 'ngày ' + n, hint: n === 1 ? 'ngày trong tháng' : '' });
+});
+W('date', '一日', 'いちにち', ['1 ngày', 'một ngày', 'cả ngày'], { irr: true, src: 'pdf', hint: 'khoảng thời gian, không phải ngày 1' });
+[['十一日', 'じゅういちにち', 11, false], ['十二日', 'じゅうににち', 12, false], ['十四日', 'じゅうよっか', 14, true], ['十九日', 'じゅうくにち', 19, false],
+ ['二十日', 'はつか', 20, true], ['二十四日', 'にじゅうよっか', 24, true], ['三十日', 'さんじゅうにち', 30, false]]
+  .forEach(([w, r, n, irr]) => W('date', w, r, ['ngày ' + n, String(n), n + ' ngày'], { irr, vi: 'ngày ' + n }));
+W('date', '何日', 'なんにち', ['ngày mấy', 'mấy ngày', 'ngày bao nhiêu']);
+
+// Tháng
+['いち', 'に', 'さん', 'し', 'ご', 'ろく', 'しち', 'はち', 'く', 'じゅう', 'じゅういち', 'じゅうに'].forEach((r, i) => {
+  const n = i + 1, mean = ['tháng ' + n, 'tháng ' + NV[n], String(n)];
+  if (n === 4) mean.push('tháng tư');
+  if (n === 1) mean.push('tháng giêng');
+  W('month', KN[i] + '月', r + 'がつ', mean, { irr: [4, 7, 9].includes(n), src: [1, 2, 4, 6, 7, 9, 10].includes(n) ? 'pdf' : 'extra', vi: 'tháng ' + n });
+});
+W('month', '何月', 'なんがつ', ['tháng mấy', 'mấy tháng']);
+
+// Giờ
+['いち', 'に', 'さん', 'よ', 'ご', 'ろく', 'しち', 'はち', 'く', 'じゅう', 'じゅういち', 'じゅうに'].forEach((r, i) => {
+  const n = i + 1;
+  W('hour', KN[i] + '時', r + 'じ', [n + ' giờ', NV[n] + ' giờ', n + 'g', n + 'h', String(n)], { irr: [4, 7, 9].includes(n), src: [7, 9].includes(n) ? 'pdf' : 'extra', vi: n + ' giờ' });
+});
+W('hour', '何時', 'なんじ', ['mấy giờ'], { src: 'pdf' });
+
+// Phút
+const PR = { 1: ['いっぷん'], 2: ['にふん'], 3: ['さんぷん'], 4: ['よんぷん'], 5: ['ごふん'], 6: ['ろっぷん'], 7: ['ななふん', 'しちふん'], 8: ['はっぷん', 'はちふん'], 9: ['きゅうふん'], 10: ['じゅっぷん', 'じっぷん'] };
+Object.keys(PR).map(Number).forEach(n => W('min', KN[n - 1] + '分', PR[n], [n + ' phút', NV[n] + ' phút', n + 'p', String(n)], { irr: [1, 3, 4, 6, 8, 10].includes(n), vi: n + ' phút' }));
+[[15, '十五分', ['じゅうごふん'], false], [20, '二十分', ['にじゅっぷん', 'にじっぷん'], true], [30, '三十分', ['さんじゅっぷん', 'さんじっぷん'], true],
+ [40, '四十分', ['よんじゅっぷん', 'よんじっぷん'], true], [50, '五十分', ['ごじゅっぷん', 'ごじっぷん'], true]]
+  .forEach(([n, w, r, irr]) => W('min', w, r, [n + ' phút', String(n)], { irr, vi: n + ' phút' }));
+W('min', '何分', 'なんぷん', ['mấy phút', 'bao nhiêu phút'], { irr: true });
+W('min', '七時四十分', ['しちじよんじゅっぷん', 'しちじよんじっぷん', 'しちじしじゅっぷん'], ['7 giờ 40 phút', '7 giờ 40', '7g 40', '7g40', '7h40', '7:40'], { irr: true, src: 'pdf', vi: '7 giờ 40 phút' });
+
+// Người
+const PE = { 1: ['ひとり'], 2: ['ふたり'], 3: ['さんにん'], 4: ['よにん'], 5: ['ごにん'], 6: ['ろくにん'], 7: ['しちにん', 'ななにん'], 8: ['はちにん'], 9: ['きゅうにん', 'くにん'], 10: ['じゅうにん'] };
+Object.keys(PE).map(Number).forEach(n => W('person', KN[n - 1] + '人', PE[n], [n + ' người', NV[n] + ' người', String(n)], { irr: [1, 2, 4, 7].includes(n), src: [1, 2, 3, 5, 6, 8].includes(n) ? 'pdf' : 'extra', vi: n + ' người' }));
+W('person', '何人', 'なんにん', ['mấy người', 'bao nhiêu người']);
+
+// Tuổi
+const AG = { 1: ['いっさい'], 2: ['にさい'], 3: ['さんさい'], 4: ['よんさい'], 5: ['ごさい'], 6: ['ろくさい'], 7: ['ななさい'], 8: ['はっさい'], 9: ['きゅうさい'], 10: ['じゅっさい', 'じっさい'] };
+Object.keys(AG).map(Number).forEach(n => W('age', KN[n - 1] + '才', AG[n], [n + ' tuổi', NV[n] + ' tuổi', String(n)], { irr: [1, 8, 10].includes(n), src: [1, 2, 8].includes(n) ? 'pdf' : 'extra', vi: n + ' tuổi' }));
+W('age', '二十才', 'はたち', ['20 tuổi', 'hai mươi tuổi', '20'], { irr: true });
+W('age', '何才', 'なんさい', ['mấy tuổi', 'bao nhiêu tuổi']);
+
+// Năm
+const YR = { 1: ['いちねん'], 2: ['にねん'], 3: ['さんねん'], 4: ['よねん'], 5: ['ごねん'], 6: ['ろくねん'], 7: ['しちねん', 'ななねん'], 8: ['はちねん'], 9: ['くねん', 'きゅうねん'], 10: ['じゅうねん'] };
+Object.keys(YR).map(Number).forEach(n => W('year', KN[n - 1] + '年', YR[n], [n + ' năm', NV[n] + ' năm', String(n)], { irr: [4, 7, 9].includes(n), src: n === 1 ? 'pdf' : 'extra', vi: n + ' năm' }));
+W('year', '何年', 'なんねん', ['mấy năm', 'bao nhiêu năm']);
+
+// Đếm cái
+['ひとつ', 'ふたつ', 'みっつ', 'よっつ', 'いつつ', 'むっつ', 'ななつ', 'やっつ', 'ここのつ', 'とお'].forEach((r, i) => {
+  const n = i + 1;
+  W('thing', n < 10 ? KN[i] + 'つ' : '十', r, [n + ' cái', NV[n] + ' cái', 'đếm ' + n + ' cái', String(n)], { irr: [3, 4, 6, 8, 10].includes(n), src: 'pdf', vi: n + ' cái' });
+});
+
+// Trăm, nghìn, vạn, yên
+function moneyMean(v, yen) {
+  const base = numForms(v).slice(), q = v / 100, t = v / 1000;
+  if (v < 1000 && v % 100 === 0 && NV[q]) base.push(q + ' trăm', NV[q] + ' trăm');
+  else if (v >= 1000 && v < 10000 && v % 1000 === 0 && NV[t]) base.push(t + ' nghìn', NV[t] + ' nghìn', t + ' ngàn', NV[t] + ' ngàn');
+  else if (v === 10000) base.push('mười nghìn', '10 nghìn', 'mười ngàn', 'một vạn', '1 vạn');
+  else if (v === 100000) base.push('một trăm nghìn', '100 nghìn', 'mười vạn');
+  else if (v === 1000000) base.push('một triệu', '1 triệu');
+  const nice = numForms(v).slice(-1)[0] + (yen ? ' yên' : '');
+  const all = yen ? base.concat(base.map(x => x + ' yên')) : base;
+  return { mean: [nice].concat(all.filter(x => x !== nice)), vi: nice };
+}
+[['一円', 'いちえん', 1, false, 'extra', true], ['四円', 'よえん', 4, true, 'extra', true], ['五円', 'ごえん', 5, false, 'extra', true], ['十円', 'じゅうえん', 10, false, 'extra', true],
+ ['百円', 'ひゃくえん', 100, false, 'pdf', true], ['三百円', 'さんびゃくえん', 300, true, 'extra', true], ['六百円', 'ろっぴゃくえん', 600, true, 'extra', true], ['八百円', 'はっぴゃくえん', 800, true, 'extra', true],
+ ['千円', 'せんえん', 1000, false, 'pdf', true], ['三千円', 'さんぜんえん', 3000, true, 'extra', true], ['八千円', 'はっせんえん', 8000, true, 'extra', true],
+ ['一万円', 'いちまんえん', 10000, false, 'pdf', true], ['十万円', 'じゅうまんえん', 100000, false, 'extra', true],
+ ['百', 'ひゃく', 100, false, 'extra', false], ['三百', 'さんびゃく', 300, true, 'extra', false], ['四百', 'よんひゃく', 400, false, 'extra', false], ['六百', 'ろっぴゃく', 600, true, 'extra', false],
+ ['七百', 'ななひゃく', 700, false, 'extra', false], ['八百', 'はっぴゃく', 800, true, 'extra', false], ['千', 'せん', 1000, false, 'extra', false], ['三千', 'さんぜん', 3000, true, 'extra', false],
+ ['八千', 'はっせん', 8000, true, 'extra', false], ['一万', 'いちまん', 10000, false, 'extra', false], ['百万', 'ひゃくまん', 1000000, false, 'extra', false]]
+  .forEach(([w, r, v, irr, src, yen]) => { const m = moneyMean(v, yen); W('money', w, r, m.mean, { irr, src, vi: m.vi }); });
+W('money', '何円', 'なんえん', ['bao nhiêu yên', 'mấy yên']);
+
+// Từ ghép trong PDF
+P('今月', 'こんげつ', ['tháng này']);
+P('来月', 'らいげつ', ['tháng sau', 'tháng tới']);
+P('飛び火', 'とびひ', ['tia lửa', 'tia lửa bắn ra']);
+P('火事', 'かじ', ['hỏa hoạn', 'hoả hoạn', 'đám cháy', 'cháy']);
+P('水仙', 'すいせん', ['cây thủy tiên', 'cây thuỷ tiên', 'thủy tiên', 'thuỷ tiên', 'hoa thủy tiên', 'hoa thuỷ tiên']);
+P('この木', 'このき', ['cái cây này', 'cây này']);
+P('木材', 'もくざい', ['tài nguyên gỗ', 'gỗ', 'vật liệu gỗ']);
+P('木星', 'もくせい', ['sao Mộc', 'mộc tinh']);
+P('お金', 'おかね', ['tiền']);
+P('金額', 'きんがく', ['số tiền', 'kim ngạch']);
+P('金魚', 'きんぎょ', ['cá vàng']);
+P('土鍋', 'どなべ', ['nồi đất']);
+P('土地', 'とち', ['mảnh đất', 'đất', 'vùng đất', 'đất đai', 'vùng', 'lãnh thổ']);
+P('曜日', 'ようび', ['thứ trong tuần', 'thứ', 'ngày trong tuần']);
+P('いい年', 'いいとし', ['một năm tốt lành', 'năm tốt lành', 'năm tốt']);
+P('忘年会', 'ぼうねんかい', ['tiệc tất niên', 'tất niên']);
+P('時間', 'じかん', ['thời gian']);
+P('平時', 'へいじ', ['thời hòa bình', 'thời bình', 'hòa bình']);
+P('茶の間', 'ちゃのま', ['phòng khách kiểu Nhật', 'phòng khách kiểu Nhật Bản', 'phòng khách']);
+P('九州', 'きゅうしゅう', ['đảo Kyushu', 'Kyushu', 'đảo Kyuushuu', 'Kyuushuu']);
+P('百億', 'ひゃくおく', ['100 tỷ', 'một trăm tỷ']);
+P('十分', 'じゅうぶん', ['đủ', 'đủ rồi', 'đầy đủ'], { hint: 'không phải đếm phút' });
+P('一分', 'いちぶ', ['một phần', '1 phần'], { hint: 'không phải đếm phút' });
+P('節分', 'せつぶん', ['tiết Setsubun', 'Setsubun', 'lễ Setsubun', 'tiết phân']);
+
+KANJI.forEach(x => { x.type = 'k'; x.id = x.k; });
+WORDS.forEach(x => { x.id = 'w:' + x.k + '|' + x.read[0]; });
+const ALL = KANJI.concat(WORDS);
+
+/* ---------- romaji -> hiragana ---------- */
+const T = (() => {
+  const t = {};
+  const rows = { '': 'あいうえお', k: 'かきくけこ', s: 'さしすせそ', t: 'たちつてと', n: 'なにぬねの', h: 'はひふへほ', m: 'まみむめも',
+    r: 'らりるれろ', g: 'がぎぐげご', z: 'ざじずぜぞ', d: 'だぢづでど', b: 'ばびぶべぼ', p: 'ぱぴぷぺぽ' };
+  for (const c in rows) 'aiueo'.split('').forEach((v, j) => { t[c + v] = rows[c][j]; });
+  t.ya = 'や'; t.yu = 'ゆ'; t.yo = 'よ'; t.wa = 'わ'; t.wo = 'を';
+  Object.assign(t, { shi: 'し', chi: 'ち', tsu: 'つ', fu: 'ふ', ji: 'じ' });
+  const yoon = { k: 'き', g: 'ぎ', n: 'に', h: 'ひ', m: 'み', r: 'り', b: 'び', p: 'ぴ' };
+  for (const c in yoon) { t[c + 'ya'] = yoon[c] + 'ゃ'; t[c + 'yu'] = yoon[c] + 'ゅ'; t[c + 'yo'] = yoon[c] + 'ょ'; }
+  const yo2 = { sh: 'し', sy: 'し', ch: 'ち', ty: 'ち', cy: 'ち', j: 'じ', jy: 'じ', zy: 'じ', dy: 'ぢ' };
+  for (const c in yo2) { t[c + 'a'] = yo2[c] + 'ゃ'; t[c + 'u'] = yo2[c] + 'ゅ'; t[c + 'o'] = yo2[c] + 'ょ'; }
+  t.xtu = 'っ'; t.ltu = 'っ'; t.xtsu = 'っ'; t.ltsu = 'っ';
+  return t;
+})();
+const VOW = 'aiueo';
+function kataToHira(s) { return s.replace(/[ァ-ヶ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60)); }
+function toKana(input, final) {
+  const s = kataToHira(String(input).normalize('NFC').toLowerCase()).replace(/[\s　・\-ー]/g, '');
+  let out = '', i = 0;
+  while (i < s.length) {
+    const c = s[i], n1 = s[i + 1];
+    if (c === "'") { i++; continue; }
+    if (!/[a-z]/.test(c)) { out += c; i++; continue; }
+    if (c === 'n') {
+      if (n1 === undefined) { out += final ? 'ん' : 'n'; i++; continue; }
+      if (n1 === "'") { out += 'ん'; i += 2; continue; }
+      if (n1 === 'n') {
+        const n2 = s[i + 2];
+        if (n2 !== undefined && (VOW.includes(n2) || n2 === 'y')) { out += 'ん'; i += 1; continue; }
+        out += 'ん'; i += 2; continue;
+      }
+      if (!VOW.includes(n1) && n1 !== 'y') { out += 'ん'; i += 1; continue; }
+    }
+    if (n1 !== undefined && c === n1 && !VOW.includes(c) && c !== 'n') { out += 'っ'; i++; continue; }
+    if (c === 't' && s.substr(i + 1, 2) === 'ch') { out += 'っ'; i++; continue; }
+    let hit = false;
+    for (let len = 3; len >= 1; len--) {
+      const sub = s.substr(i, len);
+      if (T[sub]) { out += T[sub]; i += len; hit = true; break; }
+    }
+    if (!hit) { out += c; i++; }
+  }
+  return out;
+}
+function matchReading(k, input) {
+  const v = toKana(input, true);
+  return v.length > 0 && k.read.includes(v);
+}
+
+/* ---------- nghĩa / Hán Việt ---------- */
+function stripD(s) { return s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd'); }
+function normM(s) {
+  return String(s).normalize('NFC').toLowerCase().replace(/[^\p{L}\p{N}\p{M}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
+}
+// Gõ không dấu thì so không phân biệt dấu. Gõ có dấu thì dấu phải đúng (nhất ≠ nhật).
+function matchMeaning(k, input) {
+  const toks = String(input).split(/[,;\/]/).map(normM).filter(Boolean);
+  if (!toks.length) return false;
+  const acc = k.mean.map(normM);
+  const accS = acc.map(stripD);
+  return toks.every(t => {
+    const ts = stripD(t);
+    return ts !== t ? acc.includes(t) : accS.includes(ts);
+  });
+}
+// ==LOGIC-END==
+
+/* ---------- lưu thống kê (chỉ trên trình duyệt này) ---------- */
+const KEY = 'luyen-kanji-stats-v1';
+function loadStats() {
+  try { const v = JSON.parse(localStorage.getItem(KEY)); return v && typeof v === 'object' ? v : {}; } catch (e) { return {}; }
+}
+function saveStats() { try { localStorage.setItem(KEY, JSON.stringify(stats)); } catch (e) { /* bỏ qua */ } }
+let stats = loadStats();
+
+/* ---------- trạng thái ---------- */
+const state = {
+  view: 'setup', tab: 'k', sel: new Set(KANJI.map(k => k.k)), wsel: new Set(WCATS.map(c => c.id)), irr: false, limit: 20, read: true, mean: true,
+  mode: { read: true, mean: true }, queue: [], i: 0, phase: 'ask', cur: null, log: [], confirmReset: false
+};
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const meanShow = (k, sep) => k.hv ? k.hv.toLowerCase() + sep + k.vi : k.vi;
+const lenOf = s => [...s].length;
+function poolW() { return WORDS.filter(w => state.wsel.has(w.cat) && (!state.irr || w.irr)); }
+function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+const isOk = a => (!a.askR || a.rOk) && (!a.askM || a.mOk);
+
+/* ---------- màn chọn chữ ---------- */
+function tabsHtml() {
+  return `<div class="tabs" role="tablist">
+    <button type="button" role="tab" id="tab-k" data-act="tab" data-t="k" aria-selected="${state.tab === 'k'}">Chữ đơn<span class="tn">${KANJI.length}</span></button>
+    <button type="button" role="tab" id="tab-w" data-act="tab" data-t="w" aria-selected="${state.tab === 'w'}">Từ ghép và số đếm<span class="tn">${WORDS.length}</span></button>
+  </div>`;
+}
+function viewSetup() { return tabsHtml() + (state.tab === 'k' ? viewSetupK() : viewSetupW()); }
+
+function viewSetupW() {
+  const pool = poolW(), n = state.limit ? Math.min(pool.length, state.limit) : pool.length;
+  const noMode = !state.read && !state.mean;
+  const allOn = WCATS.every(c => state.wsel.has(c.id));
+  const nIrr = WORDS.filter(w => w.irr).length;
+  const cards = WCATS.map(c => {
+    const items = WORDS.filter(w => w.cat === c.id), irr = items.filter(w => w.irr).length;
+    return `<button type="button" class="catcard" id="cat-${c.id}" data-act="toggle-cat" data-c="${c.id}" aria-pressed="${state.wsel.has(c.id)}">
+      <span class="cn">${esc(c.n)}</span><span class="ce" lang="ja">${c.ex}</span>
+      <span class="cm">${items.length} từ${irr ? ' · ' + irr + ' bất quy tắc' : ''}</span></button>`;
+  }).join('');
+  const lim = [[10, '10 câu'], [20, '20 câu'], [30, '30 câu'], [0, 'Tất cả']].map(o => `<option value="${o[0]}" ${state.limit === o[0] ? 'selected' : ''}>${o[1]}</option>`).join('');
+  return `<section>
+    <h1 style="font-size:32px;letter-spacing:-.02em">Từ ghép và số đếm</h1>
+    <p class="lede">Hiện cả từ như 六日 hay 三分. Bạn gõ cách đọc và nghĩa. Có thể lọc riêng các từ bất quy tắc để học thuộc.</p>
+    <div class="setup-grid">
+      <div class="pick"><section>
+        <div class="group-head"><h2>Nhóm từ<span class="n">${state.wsel.size}/${WCATS.length}</span></h2>
+          <button type="button" class="btn ghost small" id="cats-all" data-act="all-cats">${allOn ? 'Bỏ chọn hết' : 'Chọn hết'}</button></div>
+        <div class="cats">${cards}</div>
+      </section></div>
+      <aside class="opts card">
+        <div class="eyebrow">Hỏi gì</div>
+        <label class="check"><input type="checkbox" id="o-read" data-opt="read" ${state.read ? 'checked' : ''}><span>Cách đọc<span class="sub"><br>gõ romaji, ví dụ mikka</span></span></label>
+        <label class="check"><input type="checkbox" id="o-mean" data-opt="mean" ${state.mean ? 'checked' : ''}><span>Nghĩa<span class="sub"><br>ví dụ ngày 3</span></span></label>
+        <div class="eyebrow">Lọc</div>
+        <label class="check"><input type="checkbox" id="o-irr" data-opt="irr" ${state.irr ? 'checked' : ''}><span>Chỉ từ bất quy tắc<span class="sub"><br>${nIrr} từ như ついたち, よじ, ろっぴゃく</span></span></label>
+        <div><label class="eyebrow" for="o-limit">Số câu mỗi lượt</label><select id="o-limit" data-opt="limit">${lim}</select></div>
+        <p class="warn" id="warn">${noMode ? 'Chọn ít nhất một mục để hỏi.' : (pool.length === 0 ? 'Không có từ nào khớp bộ lọc.' : '')}</p>
+        <button type="button" class="btn" id="start-words" data-act="start-words" ${n === 0 || noMode ? 'disabled' : ''}>Bắt đầu (${n} từ)</button>
+      </aside>
+    </div>
+  </section>`;
+}
+
+function viewSetupK() {
+  const groups = GROUPS.map((g, gi) => {
+    const items = KANJI.filter(k => k.g === gi);
+    const on = items.filter(k => state.sel.has(k.k)).length;
+    return `<section>
+      <div class="group-head">
+        <h2>${esc(g.n)}<span class="n">${on}/${items.length}</span></h2>
+        <button type="button" class="btn ghost small" id="g-${gi}" data-act="toggle-group" data-g="${gi}">${on === items.length ? 'Bỏ chọn nhóm' : 'Chọn cả nhóm'}</button>
+      </div>
+      <div class="chips">${items.map(k => `
+        <button type="button" class="chip" id="c-${esc(k.k)}" data-act="toggle-chip" data-k="${esc(k.k)}" aria-pressed="${state.sel.has(k.k)}">
+          <span class="k" lang="ja">${k.k}</span><span class="h">${esc(k.hv)}</span>
+        </button>`).join('')}</div>
+    </section>`;
+  }).join('');
+  const n = state.sel.size;
+  const noMode = !state.read && !state.mean;
+  return `<section>
+    <h1 style="font-size:32px;letter-spacing:-.02em">Luyện kanji</h1>
+    <p class="lede">Hiện một chữ kanji. Bạn gõ cách đọc bằng romaji và nghĩa (tiếng Việt hoặc Hán Việt), rồi nhấn Enter.</p>
+    <div class="setup-grid">
+      <div class="pick">${groups}</div>
+      <aside class="opts card">
+        <div><div class="eyebrow">Hỏi gì</div></div>
+        <label class="check"><input type="checkbox" id="o-read" data-opt="read" ${state.read ? 'checked' : ''}><span>Cách đọc<span class="sub"><br>gõ romaji, ví dụ hitotsu</span></span></label>
+        <label class="check"><input type="checkbox" id="o-mean" data-opt="mean" ${state.mean ? 'checked' : ''}><span>Nghĩa<span class="sub"><br>Hán Việt hoặc tiếng Việt, ví dụ nhất, một</span></span></label>
+        <p class="warn" id="warn">${noMode ? 'Chọn ít nhất một mục để hỏi.' : ''}</p>
+        <button type="button" class="btn" id="start" data-act="start" ${n === 0 || noMode ? 'disabled' : ''}>Bắt đầu (${n} chữ)</button>
+      </aside>
+    </div>
+  </section>`;
+}
+
+/* ---------- phản hồi cho từ ghép ---------- */
+function fbWord(k) {
+  const note = WCAT[k.cat].note;
+  return `<div class="fb">
+    <div>
+      <h3 lang="ja" style="font-size:24px">${k.read[0]}</h3><p class="vi">${esc(k.vi)}</p>
+      <div class="badges">${k.irr ? '<span class="badge irr">Bất quy tắc</span>' : ''}<span class="badge">${k.src === 'pdf' ? 'Có trong PDF' : 'Bổ sung, không có trong PDF'}</span></div>
+    </div>
+    <div>
+      ${k.read.length > 1 ? `<div class="eyebrow">Cũng đọc được</div><div class="words">${k.read.slice(1).map(r => `<span class="word" lang="ja">${r}</span>`).join('')}</div>` : ''}
+      ${note ? `<p class="note">${esc(note)}</p>` : ''}
+    </div>
+  </div>`;
+}
+
+/* ---------- màn hỏi ---------- */
+function viewQuiz() {
+  const k = state.queue[state.i], total = state.queue.length, rev = state.phase === 'review', a = state.cur;
+  const pct = Math.round((state.i + (rev ? 1 : 0)) / total * 100);
+  const ph = (rev ? a.rIn : '');
+  const fieldR = state.mode.read ? `
+    <div class="field ${rev ? (a.rOk ? 'ok' : 'no') : ''}">
+      <label class="lbl" for="in-read">Cách đọc<small>romaji</small></label>
+      <input id="in-read" type="text" inputmode="latin" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false" ${rev ? 'disabled' : ''} value="${esc(ph)}">
+      <span class="kana" id="kana-prev" lang="ja">${rev && a.rIn ? '→ ' + esc(toKana(a.rIn, true)) : ''}</span>
+      ${rev ? `<span class="verdict ${a.rOk ? 'ok' : 'no'}">${a.rOk ? 'Đúng' : 'Sai. Chấp nhận: <span lang="ja">' + k.read.join(' · ') + '</span>'}</span>` : ''}
+    </div>` : '';
+  const fieldM = state.mode.mean ? `
+    <div class="field ${rev ? (a.mOk ? 'ok' : 'no') : ''}">
+      <label class="lbl" for="in-mean">Nghĩa<small>Hán Việt hoặc tiếng Việt</small></label>
+      <input id="in-mean" type="text" autocomplete="off" autocorrect="off" spellcheck="false" ${rev ? 'disabled' : ''} value="${esc(rev ? a.mIn : '')}">
+      ${rev ? `<span class="verdict ${a.mOk ? 'ok' : 'no'}">${a.mOk ? 'Đúng' : 'Sai. Chấp nhận: ' + esc(meanShow(k, ' · '))}</span>` : ''}
+    </div>` : '';
+  const fb = rev ? `
+    <div class="fb">
+      <div>
+        <h3>${esc(k.hv)}</h3><p class="vi">${esc(k.vi)}</p>
+        <dl class="rd"><dt>音読み</dt><dd lang="ja">${k.on.length ? k.on.join('・') : '—'}</dd><dt>訓読み</dt><dd lang="ja">${k.kun.length ? k.kun.join('・') : '—'}</dd></dl>
+      </div>
+      <div>
+        ${k.words.length ? `<div class="eyebrow">Từ thường gặp</div><div class="words">${k.words.map(w => `<span class="word"><b lang="ja">${w[0]}</b><span lang="ja">${w[1]}</span>${w[2] ? ' · ' + esc(w[2]) : ''}</span>`).join('')}</div>` : '<p class="vi">Chưa có từ ví dụ cho chữ này.</p>'}
+      </div>
+    </div>` : '';
+  return `<div class="qbar"><span class="count">${state.i + 1} / ${total}</span><div class="bar"><i style="width:${pct}%"></i></div><button type="button" class="btn ghost small" data-act="quit">Thoát</button></div>
+  <div class="card qcard">
+    <div class="glyph" lang="ja" data-len="${lenOf(k.k)}" aria-label="Chữ cần đoán">${k.k}${k.type === 'w' ? `<span class="gcat" lang="vi">${esc(WCAT[k.cat].n)}${k.hint ? ' · ' + esc(k.hint) : ''}</span>` : ''}</div>
+    <div class="qform">
+      ${fieldR}${fieldM}
+      <div class="qactions">
+        ${rev ? '<button type="button" class="btn" id="next" data-act="next">Tiếp tục</button><span class="hint">hoặc nhấn Enter</span>'
+              : '<button type="button" class="btn" id="check" data-act="check">Kiểm tra</button><span class="hint">hoặc nhấn Enter</span>'}
+      </div>
+    </div>
+    ${k.type === 'w' && rev ? fbWord(k) : fb}
+  </div>`;
+}
+
+/* ---------- kết quả ---------- */
+function viewResults() {
+  const ok = state.log.filter(isOk).length, total = state.log.length, wrong = state.log.filter(a => !isOk(a));
+  const pct = total ? Math.round(ok / total * 100) : 0;
+  const list = wrong.map(a => `
+    <div class="wrong">
+      <div class="k" lang="ja" style="font-size:${lenOf(a.k.k) > 3 ? 18 : lenOf(a.k.k) > 1 ? 26 : 40}px">${a.k.k}</div>
+      <div class="ans">
+        <span><b>${esc(a.k.hv || a.k.vi)}</b>${a.k.hv ? ' · ' + esc(a.k.vi) : ''}</span>
+        ${a.askR ? `<span class="${a.rOk ? 'good-text' : 'bad-text'}">Đọc: ${a.rIn ? esc(a.rIn) : '(trống)'} ${a.rOk ? '' : '<span class="muted"> → <span lang="ja">' + a.k.read.join(' · ') + '</span></span>'}</span>` : ''}
+        ${a.askM ? `<span class="${a.mOk ? 'good-text' : 'bad-text'}">Nghĩa: ${a.mIn ? esc(a.mIn) : '(trống)'} ${a.mOk ? '' : '<span class="muted"> → ' + esc(meanShow(a.k, ', ')) + '</span>'}</span>` : ''}
+      </div>
+    </div>`).join('');
+  return `<section class="card">
+    <div class="eyebrow">Kết quả</div>
+    <div class="score" style="margin-top:10px"><span class="big">${ok}/${total}</span><span class="pct">${pct}% đúng</span></div>
+    <div class="actions">
+      ${wrong.length ? '<button type="button" class="btn" data-act="retry-wrong">Làm lại ' + wrong.length + ' chữ sai</button>' : ''}
+      <button type="button" class="btn ${wrong.length ? 'ghost' : ''}" data-act="retry-all">Luyện lại bộ này</button>
+      <button type="button" class="btn ghost" data-act="goto" data-v="stats">Xem thống kê</button>
+      <button type="button" class="btn ghost" data-act="goto" data-v="setup">Chọn chữ khác</button>
+    </div>
+    ${wrong.length ? `<h2 style="font-size:16px;margin-top:28px">Chữ cần ôn lại</h2><div class="wrong-list">${list}</div>` : '<p class="empty">Không sai chữ nào. Tốt lắm.</p>'}
+  </section>`;
+}
+
+/* ---------- thống kê ---------- */
+function viewStats() {
+  const rows = ALL.map(k => ({ k, s: stats[k.id] || { rn: 0, rw: 0, mn: 0, mw: 0 } }))
+    .filter(r => r.s.rn + r.s.mn > 0)
+    .map(r => ({ ...r, n: r.s.rn + r.s.mn, w: r.s.rw + r.s.mw }))
+    .sort((a, b) => b.w - a.w || (b.w / b.n) - (a.w / a.n) || b.n - a.n);
+  const never = ALL.length - rows.length;
+  const totN = rows.reduce((x, r) => x + r.n, 0), totW = rows.reduce((x, r) => x + r.w, 0);
+  const weak = rows.filter(r => r.w > 0).length;
+  const body = rows.map(r => {
+    const acc = Math.round((r.n - r.w) / r.n * 100);
+    return `<tr>
+      <td class="kj" lang="ja" style="font-size:${lenOf(r.k.k) > 3 ? 18 : lenOf(r.k.k) > 1 ? 22 : 28}px">${r.k.k}</td>
+      <td><b>${esc(r.k.hv || r.k.vi)}</b><span class="sm">${r.k.hv ? esc(r.k.vi) : '<span lang="ja">' + esc(r.k.read[0]) + '</span>'}</span></td>
+      <td>${r.s.rw}<span class="sm">/ ${r.s.rn} lần hỏi</span></td>
+      <td>${r.s.mw}<span class="sm">/ ${r.s.mn} lần hỏi</span></td>
+      <td><div class="acc"><div class="bar ${acc < 60 ? 'low' : ''}"><i style="width:${acc}%"></i></div><span>${acc}%</span></div></td>
+    </tr>`;
+  }).join('');
+  return `<section>
+    <div class="stat-head">
+      <div>
+        <h1 style="font-size:32px;letter-spacing:-.02em">Thống kê</h1>
+        <div class="sums">
+          <div><b>${totN}</b><span>câu đã trả lời</span></div>
+          <div><b>${totN ? Math.round((totN - totW) / totN * 100) : 0}%</b><span>đúng tổng thể</span></div>
+          <div><b>${weak}</b><span>chữ từng sai</span></div>
+        </div>
+      </div>
+      <div class="actions" style="margin-top:0">
+        <button type="button" class="btn" data-act="practice-weak" ${weak ? '' : 'disabled'}>Luyện ${weak} chữ hay sai</button>
+        ${state.confirmReset
+          ? '<button type="button" class="btn danger" data-act="reset-stats">Xóa hẳn thống kê</button><button type="button" class="btn ghost" data-act="cancel-reset">Giữ lại</button>'
+          : '<button type="button" class="btn ghost" data-act="confirm-reset" ' + (rows.length ? '' : 'disabled') + '>Xóa thống kê</button>'}
+      </div>
+    </div>
+    ${rows.length ? `<div class="table-wrap"><table>
+      <thead><tr><th></th><th>Chữ</th><th>Sai cách đọc</th><th>Sai nghĩa</th><th>Tỉ lệ đúng</th></tr></thead>
+      <tbody>${body}</tbody></table></div>
+      ${never ? `<p class="unpracticed">${never} chữ chưa được hỏi lần nào.</p>` : ''}`
+      : '<p class="empty">Chưa có dữ liệu. Làm một lượt luyện tập, chữ nào sai sẽ hiện ở đây, xếp từ sai nhiều nhất.</p>'}
+  </section>`;
+}
+
+/* ---------- vẽ và điều khiển ---------- */
+let focusId = null;
+function render() {
+  $('#nav-setup').setAttribute('aria-current', state.view === 'setup' ? 'page' : 'false');
+  $('#nav-stats').setAttribute('aria-current', state.view === 'stats' ? 'page' : 'false');
+  const v = { setup: viewSetup, quiz: viewQuiz, results: viewResults, stats: viewStats }[state.view];
+  $('#view').innerHTML = v();
+  if (state.view === 'quiz') {
+    if (state.phase === 'ask') ($('#in-read') || $('#in-mean'))?.focus();
+    else $('#next')?.focus();
+  } else if (focusId) { document.getElementById(focusId)?.focus(); }
+  focusId = null;
+}
+function startQuiz(list) {
+  state.mode = { read: state.read, mean: state.mean };
+  state.queue = shuffle(list.slice()); state.i = 0; state.phase = 'ask'; state.cur = null; state.log = []; state.view = 'quiz';
+  window.scrollTo(0, 0); render();
+}
+function submitAnswer() {
+  const k = state.queue[state.i];
+  const rIn = state.mode.read ? ($('#in-read')?.value ?? '') : '';
+  const mIn = state.mode.mean ? ($('#in-mean')?.value ?? '') : '';
+  const a = { k, rIn, mIn, askR: state.mode.read, askM: state.mode.mean,
+    rOk: state.mode.read ? matchReading(k, rIn) : true, mOk: state.mode.mean ? matchMeaning(k, mIn) : true };
+  state.cur = a; state.log.push(a);
+  const s = stats[k.id] || (stats[k.id] = { rn: 0, rw: 0, mn: 0, mw: 0 });
+  if (a.askR) { s.rn++; if (!a.rOk) s.rw++; }
+  if (a.askM) { s.mn++; if (!a.mOk) s.mw++; }
+  saveStats();
+  state.phase = 'review'; render();
+}
+function nextQ() {
+  state.i++;
+  if (state.i >= state.queue.length) { state.view = 'results'; window.scrollTo(0, 0); }
+  else state.phase = 'ask';
+  render();
+}
+
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]'); if (!el) return;
+  const act = el.dataset.act;
+  if (act === 'toggle-chip') { const k = el.dataset.k; state.sel.has(k) ? state.sel.delete(k) : state.sel.add(k); focusId = el.id; render(); }
+  else if (act === 'toggle-group') {
+    const items = KANJI.filter(k => k.g === +el.dataset.g), all = items.every(k => state.sel.has(k.k));
+    items.forEach(k => all ? state.sel.delete(k.k) : state.sel.add(k.k)); focusId = el.id; render();
+  }
+  else if (act === 'start') { startQuiz(KANJI.filter(k => state.sel.has(k.k))); }
+  else if (act === 'tab') { state.tab = el.dataset.t; focusId = el.id; render(); }
+  else if (act === 'toggle-cat') { const c = el.dataset.c; state.wsel.has(c) ? state.wsel.delete(c) : state.wsel.add(c); focusId = el.id; render(); }
+  else if (act === 'all-cats') { WCATS.every(c => state.wsel.has(c.id)) ? state.wsel.clear() : WCATS.forEach(c => state.wsel.add(c.id)); focusId = el.id; render(); }
+  else if (act === 'start-words') { const p = shuffle(poolW().slice()); startQuiz(state.limit ? p.slice(0, state.limit) : p); }
+  else if (act === 'check') submitAnswer();
+  else if (act === 'next') nextQ();
+  else if (act === 'quit') { state.view = 'setup'; render(); }
+  else if (act === 'goto') { state.view = el.dataset.v; state.confirmReset = false; window.scrollTo(0, 0); render(); }
+  else if (act === 'retry-wrong') startQuiz(state.log.filter(a => !isOk(a)).map(a => a.k));
+  else if (act === 'retry-all') startQuiz(state.log.map(a => a.k));
+  else if (act === 'practice-weak') startQuiz(ALL.filter(k => { const s = stats[k.id]; return s && s.rw + s.mw > 0; }));
+  else if (act === 'confirm-reset') { state.confirmReset = true; render(); }
+  else if (act === 'cancel-reset') { state.confirmReset = false; render(); }
+  else if (act === 'reset-stats') { stats = {}; saveStats(); state.confirmReset = false; render(); }
+});
+document.addEventListener('change', e => {
+  const t = e.target, o = t.dataset?.opt; if (!o) return;
+  if (o === 'read' || o === 'mean') state[o] = t.checked;
+  else if (o === 'irr') state.irr = t.checked;
+  else if (o === 'limit') state.limit = +t.value;
+  focusId = t.id || null; render();
+});
+document.addEventListener('input', e => {
+  if (e.target.id === 'in-read') {
+    const v = e.target.value; $('#kana-prev').textContent = v ? '→ ' + toKana(v, false) : '';
+  }
+});
+document.addEventListener('keydown', e => {
+  if (state.view !== 'quiz' || e.key !== 'Enter' || e.isComposing) return;
+  if (state.phase === 'ask' && e.target.matches('input')) { e.preventDefault(); submitAnswer(); }
+  else if (state.phase === 'review' && e.target === document.body) { e.preventDefault(); nextQ(); }
+});
+render();
+</script>
+
+</body></html>
